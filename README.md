@@ -1,19 +1,16 @@
-# ZmyBot OpenAPI
+# ZmyBot
 
-这份目录只放 Apifox 用的接口文档。HTTP 和 WebSocket 都在 `openapi.yaml`。
+本机 `http://127.0.0.1:58080`。请求头 `Authorization: Bearer <token>`。
 
-接收人 `to_wxid` 可以是个人 wxid，也可以是群 id，群 id 以 `@chatroom` 结尾。
+接收人可以是好友 wxid，也可以是群 id（`xxx@chatroom`）。
 
-## 导入 Apifox
+| 接口 | 作用 |
+| --- | --- |
+| `POST /send_image` | 发图片。`robot_wxid`、`to_wxid`、`path` |
+| `POST /send_private_msg` | 发好友文字 |
+| `POST /send_group_msg` | 发群文字 |
+| `WS /ws` | 同样的动作，外加事件推送 |
 
-1. 打开 [Apifox](https://app.apifox.com)。
-2. 进入项目，选择导入 OpenAPI/Swagger。
-3. 数据源选 URL，填：
+Apifox 导入地址：
 
-   `https://raw.githubusercontent.com/subisle/zmybot-openapi/main/openapi.yaml`
-
-   仓库：<https://github.com/subisle/zmybot-openapi>
-4. 导入后把 `/ws` 标成 WebSocket。客户端帧、回复帧和事件推送都写在该接口说明里。
-5. 需要仓库更新后自动同步时，用 Apifox 的定时导入，地址仍是这份 `openapi.yaml`。
-
-鉴权：`Authorization: Bearer <token>`、请求头 `x-api-token`，或查询参数 `access_token`。
+`https://raw.githubusercontent.com/subisle/zmybot-openapi/main/openapi.yaml`

@@ -1,392 +1,55 @@
 openapi: 3.0.3
 info:
-  title: ZmyBot 微信机器人框架 API
+  title: ZmyBot
   version: 0.2.0
   description: |
-    当前 Rust 框架的 HTTP 与 WebSocket 接口。默认地址 `http://127.0.0.1:58080`。
-
-    鉴权三选一：`Authorization: Bearer <token>`、请求头 `x-api-token`、查询参数 `access_token`。
-
-    发图片和发文件需要启动参数 `--hook_profile=full`。单张图片或单个文件不超过 20MB。
-
-    WebSocket 地址为 `ws://127.0.0.1:58080/ws`，鉴权方式与 HTTP 相同。
-    客户端发送动作帧，服务端先回 `{echo,data}`，同时会把微信事件原文推到同一条连接。
+    本机地址 `http://127.0.0.1:58080`。
+    请求头带 `Authorization: Bearer <token>`。
+    接收人可以是好友 wxid，也可以是群 id，群 id 以 `@chatroom` 结尾。
+    发图片需要启动参数 `--hook_profile=full`。
 servers:
   - url: http://127.0.0.1:58080
-    description: 本机框架
+    description: 本机
 tags:
-  - name: 消息发送
-  - name: 账号与状态
-  - name: 通讯录
-  - name: 授权
-  - name: Hook
-  - name: 插件
+  - name: 消息
   - name: WebSocket
-security:
-  - bearerAuth: []
-  - apiToken: []
-  - accessTokenQuery: []
 paths:
   /send_image:
     post:
-      tags: [消息发送]
-      summary: 发送一张或多张图片
-      description: |
-        接收人 `to_wxid` 可以是个人 wxid，也可以是群 id（以 `@chatroom` 结尾）。
-        `path` 可以是一个字符串，或字符串数组。`paths` 会接在 `path` 后面继续发。
-        多张图按顺序逐张上传并发送。中途失败时 `sent` 是已成功的张数。
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/SendImageRequest'
-            examples:
-              one:
-                summary: 发给个人
-                value:
-                  robot_wxid: wxid_self
-                  to_wxid: wxid_friend
-                  path: /tmp/a.png
-              many:
-                summary: 发给群，多张
-                value:
-                  robot_wxid: wxid_self
-                  to_wxid: 45872025384@chatroom
-                  path:
-                    - /tmp/a.png
-                    - /tmp/b.jpg
-      responses:
-        '200':
-          description: 全部发送成功
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/SendImageResponse'
-        '400':
-          $ref: '#/components/responses/Failed'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '403':
-          $ref: '#/components/responses/Failed'
-        '502':
-          $ref: '#/components/responses/Failed'
-        '504':
-          $ref: '#/components/responses/Failed'
-  /send_private_msg:
-    post:
-      tags: [消息发送]
-      summary: 发送私聊文本、图片或文件
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/SendMessageRequest'
-            examples:
-              text:
-                value:
-                  user_id: wxid_friend
-                  message: 你好
-              image:
-                value:
-                  user_id: wxid_friend
-                  message:
-                    - type: image
-                      data:
-                        file: /tmp/a.png
-              file:
-                value:
-                  user_id: wxid_friend
-                  file: /tmp/a.pdf
-      responses:
-        '200':
-          description: 发送成功
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/SendTextResponse'
-        '400':
-          $ref: '#/components/responses/Failed'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '403':
-          $ref: '#/components/responses/Failed'
-  /send_group_msg:
-    post:
-      tags: [消息发送]
-      summary: 发送群聊文本、图片或文件
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/SendGroupRequest'
-            examples:
-              text:
-                value:
-                  group_id: 45872025384@chatroom
-                  message: 大家好
-      responses:
-        '200':
-          description: 发送成功
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/SendTextResponse'
-        '400':
-          $ref: '#/components/responses/Failed'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-  /api/framework/status:
-    get:
-      tags: [账号与状态]
-      summary: 框架运行状态
-      responses:
-        '200':
-          description: 查询成功
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/FrameworkStatusResponse'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-  /api/zm/status:
-    get:
-      tags: [账号与状态]
-      summary: 框架运行状态别名
-      responses:
-        '200':
-          description: 与 /api/framework/status 相同
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/FrameworkStatusResponse'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-  /api/get_login_info:
-    get:
-      tags: [账号与状态]
-      summary: 当前登录微信
-      responses:
-        '200':
-          description: 查询成功
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/LoginInfoResponse'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-  /api/account_info:
-    post:
-      tags: [账号与状态]
-      summary: 写入账号资料
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/AccountInfoInput'
-      responses:
-        '200':
-          description: 写入成功
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/OkStatus'
-        '400':
-          $ref: '#/components/responses/Failed'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-  /api/contact/list:
-    get:
-      tags: [通讯录]
-      summary: 好友列表
-      responses:
-        '200':
-          description: 查询成功
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  status:
-                    type: string
-                    example: ok
-                  data:
-                    type: array
-                    items:
-                      $ref: '#/components/schemas/Contact'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-  /api/contact/snapshot:
-    get:
-      tags: [通讯录]
-      summary: 通讯录快照
-      responses:
-        '200':
-          description: 查询成功
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/StatusData'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-  /api/official_account/list:
-    get:
-      tags: [通讯录]
-      summary: 公众号列表
-      responses:
-        '200':
-          description: 查询成功
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/StatusData'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-  /api/contact/label/list:
-    get:
-      tags: [通讯录]
-      summary: 标签列表
-      responses:
-        '200':
-          description: 查询成功
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/StatusData'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-  /api/group/list:
-    get:
-      tags: [通讯录]
-      summary: 群列表
-      responses:
-        '200':
-          description: 查询成功
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  status:
-                    type: string
-                    example: ok
-                  data:
-                    type: array
-                    items:
-                      $ref: '#/components/schemas/Group'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-  /api/group/member_list:
-    get:
-      tags: [通讯录]
-      summary: 群成员
-      parameters:
-        - in: query
-          name: group_id
-          required: true
-          schema:
-            type: string
-            example: 45872025384@chatroom
-      responses:
-        '200':
-          description: 查询成功
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/StatusData'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-  /api/license/status:
-    get:
-      tags: [授权]
-      summary: 授权状态
-      responses:
-        '200':
-          description: 查询成功
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/LicenseResponse'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-  /api/license/login:
-    post:
-      tags: [授权]
-      summary: 按微信 ID 授权
+      summary: 发送图片消息
+      tags: [消息]
+      x-apifox-folder: 消息
+      description: 接收人填好友 wxid 或群 id。`path` 写一张路径，或多张路径的数组。按顺序逐张发送。
       requestBody:
         required: true
         content:
           application/json:
             schema:
               type: object
-              required: [user]
+              required: [robot_wxid, to_wxid, path]
               properties:
-                user:
+                robot_wxid:
                   type: string
                   description: 机器人 wxid
-                  example: wxid_self
+                to_wxid:
+                  type: string
+                  description: 好友 wxid，或群 id
+                path:
+                  description: 图片路径。字符串是一张，数组是多张
+                  oneOf:
+                    - type: string
+                    - type: array
+                      items:
+                        type: string
+            example:
+              robot_wxid: wxid_self
+              to_wxid: 34757816141@chatroom
+              path:
+                - /tmp/a.png
+                - /tmp/b.jpg
       responses:
         '200':
-          description: 授权成功
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/LicenseResponse'
-        '400':
-          $ref: '#/components/responses/Failed'
-        '403':
-          $ref: '#/components/responses/Failed'
-  /api/license/logout:
-    post:
-      tags: [授权]
-      summary: 取消授权
-      responses:
-        '200':
-          description: 已取消
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/LicenseResponse'
-  /api/hook/configs:
-    get:
-      tags: [Hook]
-      summary: Hook 版本配置列表
-      responses:
-        '200':
-          description: 查询成功
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HookConfigList'
-  /api/hook/config/update:
-    post:
-      tags: [Hook]
-      summary: 安装一份 Hook 配置
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/HookUpdate'
-      responses:
-        '200':
-          description: 安装成功
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/OkStatus'
-        '400':
-          $ref: '#/components/responses/Failed'
-  /api/plugins:
-    get:
-      tags: [插件]
-      summary: 插件列表
-      responses:
-        '200':
-          description: 查询成功
+          description: 成功
           content:
             application/json:
               schema:
@@ -394,533 +57,137 @@ paths:
                 properties:
                   status:
                     type: string
-                    example: ok
-                  plugins:
+                  to_wxid:
+                    type: string
+                  target_type:
+                    type: string
+                    description: private 好友，group 群
+                  sent:
+                    type: integer
+                    description: 成功张数
+                  results:
                     type: array
                     items:
-                      $ref: '#/components/schemas/Plugin'
-  /api/plugins/reload:
+                      type: object
+                      properties:
+                        path:
+                          type: string
+                        status:
+                          type: string
+                        task_id:
+                          type: integer
+              example:
+                status: ok
+                to_wxid: 34757816141@chatroom
+                target_type: group
+                sent: 2
+                results:
+                  - path: /tmp/a.png
+                    status: ok
+                    task_id: 1
+                  - path: /tmp/b.jpg
+                    status: ok
+                    task_id: 2
+        '400':
+          description: 参数错误，或未使用 full 模式
+  /send_private_msg:
     post:
-      tags: [插件]
-      summary: 重新扫描插件目录
-      responses:
-        '200':
-          description: 已重载
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/OkStatus'
-  /api/plugins/enable:
-    post:
-      tags: [插件]
-      summary: 启用插件
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/PluginId'
-      responses:
-        '200':
-          description: 已启用
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/OkStatus'
-        '404':
-          $ref: '#/components/responses/Failed'
-  /api/plugins/disable:
-    post:
-      tags: [插件]
-      summary: 停用插件
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/PluginId'
-      responses:
-        '200':
-          description: 已停用
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/OkStatus'
-        '404':
-          $ref: '#/components/responses/Failed'
-  /api/events:
-    post:
-      tags: [插件]
-      summary: 向本机插件投递一条事件
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/Event'
-      responses:
-        '200':
-          description: 已分发
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  status:
-                    type: string
-                    example: ok
-                  delivered:
-                    type: integer
-                  stopped:
-                    type: boolean
-  /api/ai/complete:
-    post:
-      tags: [插件]
-      summary: 调用已配置的补全接口
+      summary: 发送文字消息
+      tags: [消息]
+      x-apifox-folder: 消息
+      description: 发给好友。发给群用 `/send_group_msg`。
       requestBody:
         required: true
         content:
           application/json:
             schema:
               type: object
-              required: [prompt]
+              required: [user_id, message]
               properties:
-                prompt:
+                user_id:
                   type: string
+                  description: 好友 wxid
+                message:
+                  type: string
+                  description: 文字内容
+            example:
+              user_id: wxid_friend
+              message: 你好
       responses:
         '200':
-          description: 补全成功
+          description: 成功
           content:
             application/json:
-              schema:
-                type: object
-                properties:
-                  status:
-                    type: string
-                    example: ok
-                  text:
-                    type: string
-        '503':
-          description: 未配置 AI 接口
-  /ws:
-    get:
-      tags: [WebSocket]
-      summary: WebSocket 动作与事件
-      description: |
-        使用 WebSocket 协议连接，不是普通 HTTP GET。
-        Apifox 导入后把此接口标成 WebSocket。
-
-        鉴权与 HTTP 相同，可放在握手的 `Authorization`、`x-api-token` 或 `access_token` 查询参数。
-
-        客户端发送文本帧：
-
-        ```json
-        {"action":"send_image","echo":"1","params":{"robot_wxid":"wxid_self","to_wxid":"45872025384@chatroom","path":["/tmp/a.png","/tmp/b.jpg"]}}
-        ```
-
-        服务端对该动作的回复：
-
-        ```json
-        {"echo":"1","data":{"status":"ok","target_type":"group","sent":2,"results":[]}}
-        ```
-
-        同时，服务端会把微信事件以文本帧推送，正文就是事件 JSON，没有 echo 包装。
-      parameters:
-        - in: query
-          name: access_token
-          schema:
-            type: string
-          description: 与 HTTP 相同的 API token
+              example:
+                status: ok
+                sent: true
+                task_id: 7
+  /send_group_msg:
+    post:
+      summary: 发送群文字消息
+      tags: [消息]
+      x-apifox-folder: 消息
       requestBody:
-        description: WebSocket 文本帧。Apifox 调试时作为发送消息。
+        required: true
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/WsClientFrame'
-            examples:
-              sendImage:
-                value:
-                  action: send_image
-                  echo: "1"
-                  params:
-                    robot_wxid: wxid_self
-                    to_wxid: 45872025384@chatroom
-                    path:
-                      - /tmp/a.png
-              sendPrivate:
-                value:
-                  action: send_private_msg
-                  echo: "2"
-                  params:
-                    user_id: wxid_friend
-                    message: 你好
-              login:
-                value:
-                  action: get_login_info
-                  echo: "3"
-                  params: {}
+              type: object
+              required: [group_id, message]
+              properties:
+                group_id:
+                  type: string
+                  description: 群 id
+                message:
+                  type: string
+                  description: 文字内容
+            example:
+              group_id: 34757816141@chatroom
+              message: 大家好
       responses:
-        '101':
-          description: 升级为 WebSocket 后的消息
+        '200':
+          description: 成功
           content:
             application/json:
-              schema:
-                oneOf:
-                  - $ref: '#/components/schemas/WsReply'
-                  - $ref: '#/components/schemas/Event'
+              example:
+                status: ok
+                sent: true
+                task_id: 8
+  /ws:
+    get:
+      summary: WebSocket
+      tags: [WebSocket]
+      x-apifox-folder: WebSocket
+      description: |
+        地址 `ws://127.0.0.1:58080/ws`，鉴权和 HTTP 一样。
+
+        发送：
+
+        ```json
+        {"action":"send_image","echo":"1","params":{"robot_wxid":"wxid_self","to_wxid":"34757816141@chatroom","path":["/tmp/a.png"]}}
+        ```
+
+        回复：
+
+        ```json
+        {"echo":"1","data":{"status":"ok","target_type":"group","sent":1}}
+        ```
+
+        文字用 `action` = `send_private_msg` 或 `send_group_msg`，`params` 与对应 HTTP 相同。
+        微信事件会另外推一条 JSON，没有 `echo`。
+      parameters:
+        - name: access_token
+          in: query
+          required: false
+          schema:
+            type: string
+      responses:
+        '101':
+          description: 切换到 WebSocket
 components:
   securitySchemes:
     bearerAuth:
       type: http
       scheme: bearer
-    apiToken:
-      type: apiKey
-      in: header
-      name: x-api-token
-    accessTokenQuery:
-      type: apiKey
-      in: query
-      name: access_token
-  responses:
-    Unauthorized:
-      description: token 不正确
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/Failed'
-    Failed:
-      description: 请求失败
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/Failed'
-  schemas:
-    OkStatus:
-      type: object
-      properties:
-        status:
-          type: string
-          example: ok
-    Failed:
-      type: object
-      properties:
-        status:
-          type: string
-          example: failed
-        ret:
-          type: integer
-          description: 400 参数错误，401 未授权，403 未授权使用，502 Hook 失败，504 等待上传或回执超时
-        msg:
-          type: string
-    SendImageRequest:
-      type: object
-      required: [robot_wxid, to_wxid]
-      properties:
-        robot_wxid:
-          type: string
-          description: 当前已登录的机器人 wxid
-          example: wxid_self
-        to_wxid:
-          type: string
-          description: 接收人。个人 wxid，或群 id（必须以 @chatroom 结尾）
-          example: 45872025384@chatroom
-        path:
-          description: 一张路径用字符串，多张用字符串数组。支持本地路径、file:// 和 http(s)
-          oneOf:
-            - type: string
-              example: /tmp/a.png
-            - type: array
-              items:
-                type: string
-              example: [/tmp/a.png, /tmp/b.jpg]
-        paths:
-          type: array
-          items:
-            type: string
-          description: 追加图片路径，排在 path 之后
-    SendImageResult:
-      type: object
-      properties:
-        path:
-          type: string
-        status:
-          type: string
-        task_id:
-          type: integer
-        msg:
-          type: string
-    SendImageResponse:
-      type: object
-      properties:
-        status:
-          type: string
-          example: ok
-        to_wxid:
-          type: string
-        target_type:
-          type: string
-          enum: [private, group]
-          description: to_wxid 含 @chatroom 时为 group，否则为 private
-        sent:
-          type: integer
-          description: 成功发出的图片张数
-        results:
-          type: array
-          items:
-            $ref: '#/components/schemas/SendImageResult'
-        ret:
-          type: integer
-        msg:
-          type: string
-    MessageSegment:
-      type: object
-      required: [type]
-      properties:
-        type:
-          type: string
-          enum: [text, image, file]
-        data:
-          type: object
-          properties:
-            text:
-              type: string
-            file:
-              type: string
-            path:
-              type: string
-            file_path:
-              type: string
-            url:
-              type: string
-    SendMessageRequest:
-      type: object
-      properties:
-        user_id:
-          type: string
-          description: 个人 wxid
-        message:
-          description: 纯文本，或消息段数组
-          oneOf:
-            - type: string
-            - type: array
-              items:
-                $ref: '#/components/schemas/MessageSegment'
-        image:
-          type: string
-          description: 有值时只发这一张图片
-        file:
-          type: string
-        file_path:
-          type: string
-    SendGroupRequest:
-      allOf:
-        - $ref: '#/components/schemas/SendMessageRequest'
-        - type: object
-          properties:
-            group_id:
-              type: string
-              description: 群 id，以 @chatroom 结尾
-              example: 45872025384@chatroom
-    SendTextResponse:
-      type: object
-      properties:
-        status:
-          type: string
-        sent:
-          type: boolean
-        task_id:
-          type: integer
-        ret:
-          type: integer
-        msg:
-          type: string
-    FrameworkStatusResponse:
-      type: object
-      properties:
-        status:
-          type: string
-          example: ok
-        data:
-          type: object
-          additionalProperties: true
-          properties:
-            runtime:
-              type: string
-              example: rust
-            hook_attached:
-              type: boolean
-            wechat_version:
-              type: string
-            hook_active:
-              type: string
-    LoginInfoResponse:
-      type: object
-      properties:
-        status:
-          type: string
-        data:
-          type: object
-          additionalProperties: true
-          properties:
-            wxid:
-              type: string
-            nickname:
-              type: string
-            hook_profile:
-              type: string
-              enum: [profile_only, receive_only, safe, full]
-    AccountInfoInput:
-      type: object
-      required: [wxid]
-      properties:
-        wxid:
-          type: string
-        nickname:
-          type: string
-        alias:
-          type: string
-    StatusData:
-      type: object
-      properties:
-        status:
-          type: string
-          example: ok
-        data:
-          description: 具体结构随接口变化
-    Contact:
-      type: object
-      properties:
-        wxid:
-          type: string
-        nickname:
-          type: string
-        remark:
-          type: string
-        alias:
-          type: string
-    Group:
-      type: object
-      properties:
-        group_id:
-          type: string
-        group_name:
-          type: string
-        owner:
-          type: string
-        member_count:
-          type: integer
-    LicenseResponse:
-      type: object
-      properties:
-        status:
-          type: string
-        license:
-          type: object
-          additionalProperties: true
-          properties:
-            enforce:
-              type: boolean
-            authorized:
-              type: boolean
-            granted_wxid:
-              type: string
-    HookConfigList:
-      type: object
-      properties:
-        status:
-          type: string
-        active:
-          type: string
-        configs:
-          type: array
-          items:
-            type: object
-            properties:
-              filename:
-                type: string
-              version:
-                type: string
-              module:
-                type: string
-        errors:
-          type: array
-          items:
-            type: string
-    HookUpdate:
-      type: object
-      required: [filename, sha256]
-      properties:
-        filename:
-          type: string
-        sha256:
-          type: string
-        url:
-          type: string
-          description: https，或 http://127.0.0.1
-        content_base64:
-          type: string
-        activate:
-          type: boolean
-    PluginId:
-      type: object
-      required: [id]
-      properties:
-        id:
-          type: string
-    Plugin:
-      type: object
-      properties:
-        id:
-          type: string
-        name:
-          type: string
-        version:
-          type: string
-        enabled:
-          type: boolean
-        priority:
-          type: integer
-        backend:
-          type: string
-        last_error:
-          type: string
-          nullable: true
-    Event:
-      type: object
-      required: [event_type]
-      additionalProperties: true
-      properties:
-        event_type:
-          type: string
-          example: SubPrivate
-        wxid:
-          type: string
-        msg:
-          type: string
-    WsClientFrame:
-      type: object
-      required: [action]
-      properties:
-        action:
-          type: string
-          enum: [get_login_info, send_private_msg, send_group_msg, send_image]
-        echo:
-          type: string
-          description: 原样回到回复帧
-        params:
-          type: object
-          additionalProperties: true
-          description: |
-            get_login_info 无参数。
-            send_private_msg 使用 user_id、message、image、file。
-            send_group_msg 使用 group_id、message、image、file。
-            send_image 使用 robot_wxid、to_wxid、path 或 paths。to_wxid 可以是群 id。
-    WsReply:
-      type: object
-      properties:
-        echo:
-          type: string
-        data:
-          type: object
-          additionalProperties: true
-          description: 与对应 HTTP 接口的响应体相同
+security:
+  - bearerAuth: []
