@@ -8,7 +8,11 @@
 
 1. 打开 [Apifox](https://app.apifox.com)。
 2. 进入项目，选择导入 OpenAPI/Swagger。
-3. 数据源选 URL，填仓库里 `openapi.yaml` 的 raw 地址。
+3. 数据源选 URL，填：
+
+   `https://raw.githubusercontent.com/subisle/zmybot-openapi/main/openapi.yaml`
+
+   仓库：<https://github.com/subisle/zmybot-openapi>
 4. 导入后把 `/ws` 标成 WebSocket。客户端帧、回复帧和事件推送都写在该接口说明里。
 5. 需要仓库更新后自动同步时，用 Apifox 的定时导入，地址仍是这份 `openapi.yaml`。
 
